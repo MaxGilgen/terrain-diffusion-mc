@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.13-SNAPSHOT'
+    id 'fabric-loom' version '1.17.12'
     id 'maven-publish'
 }
 
@@ -32,6 +32,11 @@ base {
 }
 
 loom {
+    // Minecraft 26.x is distributed already de-obfuscated and Fabric publishes no real
+    // intermediary for it (the meta serves an identity 0.0.0 artifact). Tell Loom not to expect
+    // a per-version intermediary so it does not try to resolve net.fabricmc:intermediary:26.2.
+    noIntermediateMappings()
+
     splitEnvironmentSourceSets()
 
     mods {
@@ -63,10 +68,65 @@ repositories {
     flatDir { dirs 'libs'}
 }
 
+// --- Identity mappings for de-obfuscated Minecraft (26.x and newer) ---
+// Minecraft 26.x is distributed already de-obfuscated with official Mojang names, and Mojang
+// publishes no ProGuard mapping while Fabric publishes no Yarn/real intermediary for it. Loom's
+// source remapper still requires a "mappings" artifact that exposes the official/intermediary/
+// named namespaces, so we synthesise an identity mapping (every class mapped to itself) straight
+// from the Minecraft client jar. This keeps the dev namespace identical to the shipped names.
+def identityMappingsJar = layout.buildDirectory
+        .file("generated/identity-mappings/minecraft-${project.minecraft_version}-identity-mappings.jar")
+        .get().asFile
+
+def generateIdentityMappings = {
+    if (identityMappingsJar.exists()) return
+    identityMappingsJar.parentFile.mkdirs()
+
+    // Resolve the client jar URL from Mojang's version manifest (no hard-coded content hashes).
+    def manifest = new JsonSlurper().parse(new URL('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json'))
+    def versionEntry = manifest.versions.find { it.id == project.minecraft_version }
+    if (versionEntry == null) {
+        throw new GradleException("Minecraft ${project.minecraft_version} not found in the Mojang version manifest")
+    }
+    def versionMeta = new JsonSlurper().parse(new URL(versionEntry.url as String))
+    def clientUrl = versionMeta.downloads.client.url as String
+
+    def clientJar = new File(identityMappingsJar.parentFile, "minecraft-${project.minecraft_version}-client.jar")
+    if (!clientJar.exists()) {
+        clientJar.withOutputStream { os -> new URL(clientUrl).withInputStream { is -> os << is } }
+    }
+
+    def classNames = [] as List<String>
+    new java.util.zip.ZipFile(clientJar).withCloseable { zip ->
+        zip.entries().each { e ->
+            if (e.name.endsWith('.class') && !e.name.startsWith('META-INF/')) {
+                classNames << e.name.substring(0, e.name.length() - '.class'.length())
+            }
+        }
+    }
+
+    def tiny = new StringBuilder('tiny\t2\t0\tofficial\tintermediary\tnamed\n')
+    classNames.each { String c -> tiny.append('c\t').append(c).append('\t').append(c).append('\t').append(c).append('\n') }
+
+    new java.util.zip.ZipOutputStream(identityMappingsJar.newOutputStream()).withCloseable { zos ->
+        zos.putNextEntry(new java.util.zip.ZipEntry('mappings/mappings.tiny'))
+        zos.write(tiny.toString().getBytes('UTF-8'))
+        zos.closeEntry()
+    }
+    println "Generated identity mappings for Minecraft ${project.minecraft_version} (${classNames.size()} classes)"
+}
+generateIdentityMappings()
+
 dependencies {
     // To change the versions see the gradle.properties file
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    // Minecraft 26.x ships de-obfuscated with official Mojang names and publishes no Yarn or
+    // ProGuard mapping artifact, so the mod is written directly against Mojang ("named") names.
+    // The identity (0.0.0) intermediary keeps the Minecraft jar in its official namespace, and
+    // loom.noIntermediateMappings() (see the loom block) stops Loom from looking for a real
+    // per-version intermediary. Mod dependencies stay modImplementation so Fabric API is still
+    // expanded into loadable mods for the dev runtime (runClient/runServer/runDatagen).
+    mappings files(identityMappingsJar)
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
@@ -104,7 +164,7 @@ processResources {
     }
 }
 
-def targetJavaVersion = 21
+def targetJavaVersion = 25
 tasks.withType(JavaCompile).configureEach {
     // ensure that the encoding is set to UTF-8, no matter what the system default is
     // this fixes some edge cases with special characters not displaying correctly
