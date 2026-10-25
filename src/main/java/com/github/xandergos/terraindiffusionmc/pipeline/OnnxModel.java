@@ -264,6 +264,9 @@ public final class OnnxModel implements AutoCloseable {
                     return runWithSession(activeGpuSession, inputs);
                 }
             } catch (RuntimeException gpuException) {
+                // Only ONNX Runtime failures (runWithSession/claimGpuSlot wrap an OrtException) mean
+                // the GPU is unusable; anything else is a bug and must surface unchanged.
+                if (!(gpuException.getCause() instanceof OrtException)) throw gpuException;
                 disableGpu(gpuException);
             }
         }
@@ -295,6 +298,11 @@ public final class OnnxModel implements AutoCloseable {
 
     /** Creates this model's CPU session on first use after a GPU failure. */
     private synchronized OrtSession cpuFallbackSession() {
+        if (gpuSession != null) {
+            // offload_models=false: each model holds its own GPU session; free its VRAM as well
+            try { gpuSession.close(); } catch (OrtException ignored) {}
+            gpuSession = null;
+        }
         if (cpuSession == null) {
             try {
                 OrtSession.SessionOptions sessionOptions = new OrtSession.SessionOptions();
