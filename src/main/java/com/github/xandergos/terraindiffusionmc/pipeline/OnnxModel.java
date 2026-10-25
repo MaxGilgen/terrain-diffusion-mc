@@ -37,6 +37,14 @@ public final class OnnxModel implements AutoCloseable {
     private static final AtomicBoolean cudaWarnLoggedOnce = new AtomicBoolean(false);
     private static final AtomicBoolean dmlWarnLoggedOnce = new AtomicBoolean(false);
     private static final AtomicBoolean noGpuWarnLoggedOnce = new AtomicBoolean(false);
+    private static final AtomicBoolean directMLPreloaded = new AtomicBoolean(false);
+    private static final AtomicBoolean dmlDeviceLoggedOnce = new AtomicBoolean(false);
+    // Set once GPU inference failed at runtime; from then on every model runs on the CPU.
+    private static final AtomicBoolean gpuFailed = new AtomicBoolean(false);
+
+    /** Bundled DirectML redistributable (windows build only), see build.gradle processResources. */
+    private static final String BUNDLED_DIRECTML_RESOURCE = "/natives/directml/DirectML.dll";
+    private static final String BUNDLED_DIRECTML_VERSION = "1.15.4";
 
     // GPU slot: when offload_models=true, only one session is alive at a time.
     private static final Object GPU_SLOT_LOCK = new Object();
@@ -65,6 +73,7 @@ public final class OnnxModel implements AutoCloseable {
         this.name = name;
         try {
             long start = System.currentTimeMillis();
+            preloadBundledDirectML();
             this.env = OrtEnvironment.getEnvironment(OrtLoggingLevel.ORT_LOGGING_LEVEL_ERROR);
             byte[] sourceModelBytes = Files.readAllBytes(modelFilePath);
             OptimizedModelLoadResult initialOptimizedModelLoadResult = optimizeModelAtRuntime(sourceModelBytes, false);
@@ -245,12 +254,79 @@ public final class OnnxModel implements AutoCloseable {
         if (cpuSession != null) {
             return runWithSession(cpuSession, inputs);
         }
-        if (gpuSession != null) {
-            return runWithSession(gpuSession, inputs);
+        if (!gpuFailed.get()) {
+            try {
+                if (gpuSession != null) {
+                    return runWithSession(gpuSession, inputs);
+                }
+                synchronized (GPU_SLOT_LOCK) {
+                    claimGpuSlot();
+                    return runWithSession(activeGpuSession, inputs);
+                }
+            } catch (RuntimeException gpuException) {
+                disableGpu(gpuException);
+            }
+        }
+        return runWithSession(cpuFallbackSession(), inputs);
+    }
+
+    /**
+     * GPU inference failed (driver, DirectML version, VRAM): warn once, free the GPU sessions and
+     * continue on the CPU instead of crashing world generation. CPU is slow, but the world loads.
+     * vereinfacht: the switch is permanent until restart, also for transient errors (e.g. one
+     * out-of-memory); retrying the GPU later would need an error classification.
+     */
+    private void disableGpu(RuntimeException cause) {
+        if (gpuFailed.compareAndSet(false, true)) {
+            Throwable root = cause;
+            while (root.getCause() != null) root = root.getCause();
+            LOG.warn("GPU inference ({}) failed, continuing on CPU (slow). Restart to retry the GPU. Cause: {}",
+                    getResolvedInferenceProvider(), root.getMessage());
+            resolvedInferenceProvider = "CPU";
         }
         synchronized (GPU_SLOT_LOCK) {
-            claimGpuSlot();
-            return runWithSession(activeGpuSession, inputs);
+            if (activeGpuSession != null) {
+                try { activeGpuSession.close(); } catch (OrtException ignored) {}
+                activeGpuSession = null;
+                gpuSlotHolder = null;
+            }
+        }
+    }
+
+    /** Creates this model's CPU session on first use after a GPU failure. */
+    private synchronized OrtSession cpuFallbackSession() {
+        if (cpuSession == null) {
+            try {
+                OrtSession.SessionOptions sessionOptions = new OrtSession.SessionOptions();
+                sessionOptions.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+                cpuSession = env.createSession(optimizedModelBytes, sessionOptions);
+                LOG.info("ONNX model '{}' switched to CPU", name);
+            } catch (OrtException e) {
+                throw new RuntimeException("Failed to create CPU fallback session for: " + name, e);
+            }
+        }
+        return cpuSession;
+    }
+
+    /**
+     * Loads the DirectML redistributable bundled in the windows jar before ONNX Runtime starts.
+     * Windows reuses an already loaded module with the same name, so onnxruntime.dll then binds
+     * to this copy instead of an outdated C:\Windows\System32\DirectML.dll. No-op on other builds.
+     */
+    private static void preloadBundledDirectML() {
+        if (!directMLPreloaded.compareAndSet(false, true)) return;
+        try (java.io.InputStream in = OnnxModel.class.getResourceAsStream(BUNDLED_DIRECTML_RESOURCE)) {
+            if (in == null) return;
+            Path dir = Files.createTempDirectory("terrain-diffusion-directml");
+            Path dll = dir.resolve("DirectML.dll");
+            Files.copy(in, dll, StandardCopyOption.REPLACE_EXISTING);
+            dll.toFile().deleteOnExit();
+            dir.toFile().deleteOnExit();
+            System.load(dll.toAbsolutePath().toString());
+            LOG.info("Loaded bundled DirectML {} from {}", BUNDLED_DIRECTML_VERSION, dll);
+        } catch (Throwable t) {
+            LOG.warn("Could not load bundled DirectML {}, the system DirectML.dll will be used: {}",
+                    BUNDLED_DIRECTML_VERSION, t.toString());
         }
     }
 
@@ -319,8 +395,12 @@ public final class OnnxModel implements AutoCloseable {
 
         if (!added) {
             try {
-                opts.addDirectML(0);
+                int dmlDevice = TerrainDiffusionConfig.dmlDevice();
+                opts.addDirectML(dmlDevice);
                 added = true;
+                if (dmlDeviceLoggedOnce.compareAndSet(false, true)) {
+                    LOG.info("DirectML adapter index {} (config inference.dml_device)", dmlDevice);
+                }
                 setResolvedProviderOnce("DirectML");
             } catch (Throwable t) {
                 if (dmlWarnLoggedOnce.compareAndSet(false, true)) {

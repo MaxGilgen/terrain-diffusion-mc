@@ -40,6 +40,11 @@ public final class TerrainDiffusionConfig {
         return device;
     }
 
+    /** DXGI adapter index for DirectML (0 = first adapter, usually the main GPU). */
+    public static int dmlDevice() {
+        return Math.max(0, readInt("inference.dml_device", 0));
+    }
+
     /** Whether to offload inactive models from VRAM between pipeline stages. */
     public static boolean offloadModels() {
         return readBoolean("inference.offload_models", DEFAULT_OFFLOAD_MODELS);

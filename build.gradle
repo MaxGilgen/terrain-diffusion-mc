@@ -112,6 +112,14 @@ processResources {
     from(generatedManifestFile) {
         into ''
     }
+    // DirectML 1.15.4 (NuGet Microsoft.AI.DirectML, Microsoft redistributable, licence alongside).
+    // onnxruntime-dml needs DirectML >= 1.15; without it Windows loads the old System32 copy
+    // (e.g. 1.8), where ops like Softmax fail with 80070057. OnnxModel preloads this copy.
+    if (useDml) {
+        from('libs/directml') {
+            into 'natives/directml'
+        }
+    }
 
     filesMatching("fabric.mod.json") {
         expand "version": project.version,
