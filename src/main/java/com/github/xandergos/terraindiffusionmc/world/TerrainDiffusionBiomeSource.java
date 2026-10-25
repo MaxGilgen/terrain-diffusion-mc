@@ -83,11 +83,22 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
         return biomeIdMap.values().stream();
     }
 
-    // 26.3: BiomeSource asks for a resolver instead of calling getNoiseBiome(..., sampler) directly.
-    // No @Override on either method, so the source compiles for 26.1/26.2 (abstract getNoiseBiome)
-    // and for 26.3 (abstract createResolver).
+    // 26.3: BiomeSource asks for a resolver (createResolver) instead of calling
+    // getNoiseBiome(x, y, z, sampler) directly, and BiomeResolver.getNoiseBiome lost its sampler
+    // parameter (26.1/26.2: four parameters, 26.3: three). The anonymous class implements both
+    // variants without @Override, so this one source compiles for all targets: on 26.3 the
+    // three-parameter method is the interface method, on 26.1/26.2 the four-parameter one, and
+    // createResolver itself is an unused extra method there.
     public BiomeResolver createResolver(Climate.Sampler sampler) {
-        return (x, y, z) -> getNoiseBiome(x, y, z, sampler);
+        return new BiomeResolver() {
+            public Holder<Biome> getNoiseBiome(int x, int y, int z) {
+                return TerrainDiffusionBiomeSource.this.getNoiseBiome(x, y, z, sampler);
+            }
+
+            public Holder<Biome> getNoiseBiome(int x, int y, int z, Climate.Sampler noise) {
+                return TerrainDiffusionBiomeSource.this.getNoiseBiome(x, y, z, noise);
+            }
+        };
     }
 
     public Holder<Biome> getNoiseBiome(int x, int y, int z, Climate.Sampler noise) {

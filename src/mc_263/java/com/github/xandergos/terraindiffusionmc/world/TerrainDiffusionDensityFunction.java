@@ -26,11 +26,6 @@ public class TerrainDiffusionDensityFunction implements DensityFunction {
     public static final MapCodec<TerrainDiffusionDensityFunction> CODEC =
             MapCodec.unit(TerrainDiffusionDensityFunction::new);
 
-    /** Lowest density this function can report (blocks below the target height). */
-    public static final float MIN_DENSITY = -64;
-    /** Highest density this function can report (blocks above the target height). */
-    public static final float MAX_DENSITY = 1024;
-
     @Override
     public DensitySampler compileSampler(DensityFunction.CompileContext context) {
         return new Sampler();
@@ -43,7 +38,10 @@ public class TerrainDiffusionDensityFunction implements DensityFunction {
 
     @Override
     public Interval range() {
-        return Interval.of(MIN_DENSITY, MAX_DENSITY);
+        // density = targetHeight - y. targetHeight comes from the model and depends on the world
+        // scale (HeightConverter does not clamp it), so there is no tight bound to declare.
+        // INFINITE is the honest answer; a too narrow range could let the compiler fold wrongly.
+        return Interval.INFINITE;
     }
 
     @Override

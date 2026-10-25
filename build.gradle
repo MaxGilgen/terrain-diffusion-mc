@@ -152,8 +152,9 @@ java {
 }
 
 jar {
-    from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}" }
+    from("LICENSE.txt") {
+        // archivesBaseName no longer exists in Gradle 9; the closure only ran once LICENSE.txt matched
+        rename { "${it}_${base.archivesName.get()}" }
     }
 }
 
