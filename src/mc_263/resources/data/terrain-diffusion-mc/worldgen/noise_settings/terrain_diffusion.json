@@ -2,12 +2,10 @@
   "sea_level": 63,
   "disable_mob_generation": false,
   "legacy_random_source": false,
-  "default_block": {
-    "Name": "minecraft:stone"
-  },
+  "default_block": "minecraft:stone",
   "default_fluid": {
-    "Name": "minecraft:water",
-    "Properties": {
+    "id": "minecraft:water",
+    "properties": {
       "level": "0"
     }
   },
@@ -53,9 +51,7 @@
         },
         "then_run": {
           "type": "minecraft:block",
-          "result_state": {
-            "Name": "minecraft:bedrock"
-          }
+          "result_state": "minecraft:bedrock"
         }
       },
       {
@@ -73,8 +69,8 @@
         "then_run": {
           "type": "minecraft:block",
           "result_state": {
-            "Name": "minecraft:deepslate",
-            "Properties": {
+            "id": "minecraft:deepslate",
+            "properties": {
               "axis": "y"
             }
           }
@@ -110,8 +106,8 @@
             "then_run": {
               "type": "minecraft:block",
               "result_state": {
-                "Name": "minecraft:snow",
-                "Properties": {
+                "id": "minecraft:snow",
+                "properties": {
                   "layers": "1"
                 }
               }
@@ -141,9 +137,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:sand"
-                }
+                "result_state": "minecraft:sand"
               }
             },
             {
@@ -156,9 +150,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:red_sand"
-                }
+                "result_state": "minecraft:red_sand"
               }
             },
             {
@@ -171,9 +163,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:snow_block"
-                }
+                "result_state": "minecraft:snow_block"
               }
             },
             {
@@ -186,9 +176,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:snow_block"
-                }
+                "result_state": "minecraft:snow_block"
               }
             },
             {
@@ -201,9 +189,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:stone"
-                }
+                "result_state": "minecraft:stone"
               }
             },
             {
@@ -216,9 +202,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:stone"
-                }
+                "result_state": "minecraft:stone"
               }
             },
             {
@@ -231,9 +215,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:sand"
-                }
+                "result_state": "minecraft:sand"
               }
             },
             {
@@ -246,9 +228,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:sand"
-                }
+                "result_state": "minecraft:sand"
               }
             },
             {
@@ -262,9 +242,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:gravel"
-                }
+                "result_state": "minecraft:gravel"
               }
             },
             {
@@ -279,16 +257,12 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:grass_block"
-                }
+                "result_state": "minecraft:grass_block"
               }
             },
             {
               "type": "minecraft:block",
-              "result_state": {
-                "Name": "minecraft:dirt"
-              }
+              "result_state": "minecraft:dirt"
             }
           ]
         }
@@ -315,9 +289,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:sandstone"
-                }
+                "result_state": "minecraft:sandstone"
               }
             },
             {
@@ -330,9 +302,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:terracotta"
-                }
+                "result_state": "minecraft:terracotta"
               }
             },
             {
@@ -345,9 +315,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:stone"
-                }
+                "result_state": "minecraft:stone"
               }
             },
             {
@@ -360,9 +328,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:stone"
-                }
+                "result_state": "minecraft:stone"
               }
             },
             {
@@ -376,9 +342,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:stone"
-                }
+                "result_state": "minecraft:stone"
               }
             },
             {
@@ -391,9 +355,7 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:sand"
-                }
+                "result_state": "minecraft:sand"
               }
             },
             {
@@ -408,16 +370,12 @@
               },
               "then_run": {
                 "type": "minecraft:block",
-                "result_state": {
-                  "Name": "minecraft:gravel"
-                }
+                "result_state": "minecraft:gravel"
               }
             },
             {
               "type": "minecraft:block",
-              "result_state": {
-                "Name": "minecraft:dirt"
-              }
+              "result_state": "minecraft:dirt"
             }
           ]
         }
