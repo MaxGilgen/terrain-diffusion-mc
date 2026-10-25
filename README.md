@@ -23,8 +23,8 @@ Use the `-cuda` build only if you are on Linux, or have an NVIDIA GPU and prefer
 ## Supported Minecraft versions
 
 This mod targets Minecraft **26.x**:
-**26.1**, **26.2**, and **26.3**. A single jar declares compatibility with the whole `>=26.1`
-range, and the build can produce a jar against any specific target with
+**26.1**, **26.2**, and **26.3**. 26.3 reworked the worldgen API, so a 26.3 jar declares `>=26.3` and a 26.1/26.2 jar
+declares `>=26.1 <26.3`. The build produces a jar for a specific target (default 26.3) with
 `./gradlew build -PmcTarget=261|262|263` (or `./gradlew buildAllMc` for all three).
 Minecraft 26.x requires **Java 25**.
 

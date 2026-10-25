@@ -15,6 +15,7 @@ import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Climate;
 
@@ -82,7 +83,13 @@ public class TerrainDiffusionBiomeSource extends BiomeSource {
         return biomeIdMap.values().stream();
     }
 
-    @Override
+    // 26.3: BiomeSource asks for a resolver instead of calling getNoiseBiome(..., sampler) directly.
+    // No @Override on either method, so the source compiles for 26.1/26.2 (abstract getNoiseBiome)
+    // and for 26.3 (abstract createResolver).
+    public BiomeResolver createResolver(Climate.Sampler sampler) {
+        return (x, y, z) -> getNoiseBiome(x, y, z, sampler);
+    }
+
     public Holder<Biome> getNoiseBiome(int x, int y, int z, Climate.Sampler noise) {
         requireBiomeIdMap();
         Holder<Biome> defaultEntry = biomeIdMap.get((short) 1);

@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version '1.17.14'
+    id 'net.fabricmc.fabric-loom' version '1.19.3'
     id 'maven-publish'
 }
 
@@ -8,12 +8,13 @@ import groovy.json.JsonSlurper
 import java.security.MessageDigest
 
 // Minecraft target selection (26.1 / 26.2 / 26.3), chosen via -PmcTarget=26x.
-def mcTarget = (project.findProperty('mcTarget') ?: '261').toString()
+def mcTarget = (project.findProperty('mcTarget') ?: '263').toString()
 if (!(mcTarget in ['261', '262', '263'])) {
     throw new GradleException("Unknown -PmcTarget=${mcTarget}; expected one of 261, 262, 263")
 }
 def minecraftVersion = project.property("mc${mcTarget}_minecraft").toString()
 def fabricVersion = project.property("mc${mcTarget}_fabric").toString()
+def minecraftDependency = project.findProperty("mc${mcTarget}_minecraft_dependency") ?: project.minecraft_dependency
 ext.minecraft_version = minecraftVersion
 ext.fabric_version = fabricVersion
 println "Minecraft target: ${mcTarget} -> minecraft ${minecraftVersion}, fabric-api ${fabricVersion}"
@@ -42,9 +43,11 @@ base {
     archivesName = project.archives_base_name
 }
 
-// The DensityFunction value-range API diverges across 26.1,26.2 and 26.3)
-def densityFunctionVariantDir = (mcTarget == '263') ? 'src/mc_263/java' : 'src/mc_legacy/java'
-sourceSets.main.java.srcDir densityFunctionVariantDir
+// 26.3 rewrote the density-function system and the noise_settings JSON format (material_rule,
+// chunk_surface_level), so the density function and the noise settings live per target.
+def variantDir = (mcTarget == '263') ? 'src/mc_263' : 'src/mc_legacy'
+sourceSets.main.java.srcDir "${variantDir}/java"
+sourceSets.main.resources.srcDir "${variantDir}/resources"
 
 loom {
     splitEnvironmentSourceSets()
@@ -102,7 +105,7 @@ processResources {
     dependsOn 'generateModelAssetManifest'
     inputs.property "version", project.version
     inputs.property "minecraft_version", minecraftVersion
-    inputs.property "minecraft_dependency", project.minecraft_dependency
+    inputs.property "minecraft_dependency", minecraftDependency
     inputs.property "loader_version", project.loader_version
     inputs.property "build_variant", buildVariant
     filteringCharset "UTF-8"
@@ -113,7 +116,7 @@ processResources {
     filesMatching("fabric.mod.json") {
         expand "version": project.version,
                 "minecraft_version": minecraftVersion,
-                "minecraft_dependency": project.minecraft_dependency,
+                "minecraft_dependency": minecraftDependency,
                 "loader_version": project.loader_version
     }
     filesMatching("build-variant.properties") {
